@@ -1,0 +1,270 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "The AWS CloudFormation template for this Serverless application",
+  "Resources": {
+    "ServerlessDeploymentBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            {
+              "ServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "AuthLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/healthline-secure-static-s3-site-dev-auth"
+      }
+    },
+    "IamRoleLambdaExecution": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "lambda.amazonaws.com",
+                  "edgelambda.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": {
+              "Fn::Join": [
+                "-",
+                [
+                  "dev",
+                  "healthline-secure-static-s3-site",
+                  "lambda"
+                ]
+              ]
+            },
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogStream"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/healthline-secure-static-s3-site-dev-auth:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:PutLogEvents"
+                  ],
+                  "Resource": [
+                    {
+                      "Fn::Sub": "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/healthline-secure-static-s3-site-dev-auth:*:*"
+                    }
+                  ]
+                },
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogStreams"
+                  ],
+                  "Resource": "arn:aws:logs:*:*:*"
+                }
+              ]
+            }
+          }
+        ],
+        "Path": "/",
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              "healthline-secure-static-s3-site",
+              "dev",
+              {
+                "Ref": "AWS::Region"
+              },
+              "lambdaRole"
+            ]
+          ]
+        }
+      }
+    },
+    "AuthLambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Ref": "ServerlessDeploymentBucket"
+          },
+          "S3Key": "serverless/healthline-secure-static-s3-site/dev/1559898079338-2019-06-07T09:01:19.338Z/auth.zip"
+        },
+        "FunctionName": "healthline-secure-static-s3-site-dev-auth",
+        "Handler": "_optimize/healthline-secure-static-s3-site-dev-auth/main.auth",
+        "MemorySize": 128,
+        "Role": {
+          "Fn::GetAtt": [
+            "IamRoleLambdaExecution",
+            "Arn"
+          ]
+        },
+        "Runtime": "nodejs8.10",
+        "Timeout": 5,
+        "Description": "auth lambda"
+      },
+      "DependsOn": [
+        "AuthLogGroup",
+        "IamRoleLambdaExecution"
+      ]
+    },
+    "AuthLambdaVersiondyAjKhw7YfD5k5eXxkNVU7TUWS67e7moP23ye0RGa8": {
+      "Type": "AWS::Lambda::Version",
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "AuthLambdaFunction"
+        },
+        "CodeSha256": "amNzIVx4+hegmtw7ARb6nHuvaDP8PqwpeBr3qIg5TyA=",
+        "Description": "auth lambda"
+      }
+    },
+    "WebsiteBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": "healthline-service-fokal",
+        "AccessControl": "PublicRead",
+        "WebsiteConfiguration": {
+          "IndexDocument": "index.html",
+          "ErrorDocument": "error.html"
+        }
+      }
+    },
+    "WebsiteDistribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "WebsiteBucketOrigin",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "DefaultTTL": 600,
+            "MaxTTL": 600,
+            "Compress": true,
+            "ForwardedValues": {
+              "QueryString": false,
+              "Cookies": {
+                "Forward": "none"
+              }
+            }
+          },
+          "CacheBehaviors": [
+            {
+              "TargetOriginId": "WebsiteBucketOrigin",
+              "AllowedMethods": [
+                "GET",
+                "HEAD"
+              ],
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "DefaultTTL": 600,
+              "MaxTTL": 600,
+              "Compress": true,
+              "PathPattern": "index.html",
+              "ForwardedValues": {
+                "QueryString": false,
+                "Cookies": {
+                  "Forward": "none"
+                }
+              },
+              "LambdaFunctionAssociations": [
+                {
+                  "EventType": "viewer-request",
+                  "LambdaFunctionARN": {
+                    "Ref": "AuthLambdaVersiondyAjKhw7YfD5k5eXxkNVU7TUWS67e7moP23ye0RGa8"
+                  }
+                }
+              ]
+            }
+          ],
+          "DefaultRootObject": "main.html",
+          "Enabled": true,
+          "PriceClass": "PriceClass_100",
+          "HttpVersion": "http2",
+          "ViewerCertificate": {
+            "CloudFrontDefaultCertificate": true
+          },
+          "Origins": [
+            {
+              "Id": "WebsiteBucketOrigin",
+              "DomainName": {
+                "Fn::GetAtt": [
+                  "WebsiteBucket",
+                  "DomainName"
+                ]
+              },
+              "S3OriginConfig": {}
+            }
+          ]
+        }
+      }
+    },
+    "LambdaGetPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:GetFunction",
+        "FunctionName": {
+          "Ref": "AuthLambdaFunction"
+        },
+        "Principal": "events.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            ":",
+            [
+              "arn:aws:events",
+              {
+                "Ref": "AWS::Region"
+              },
+              {
+                "Ref": "AWS::AccountId"
+              },
+              "*"
+            ]
+          ]
+        }
+      },
+      "DependsOn": [
+        "AuthLambdaFunction"
+      ]
+    }
+  },
+  "Outputs": {
+    "ServerlessDeploymentBucketName": {
+      "Value": {
+        "Ref": "ServerlessDeploymentBucket"
+      }
+    },
+    "AuthLambdaFunctionQualifiedArn": {
+      "Description": "Current Lambda function version",
+      "Value": {
+        "Ref": "AuthLambdaVersiondyAjKhw7YfD5k5eXxkNVU7TUWS67e7moP23ye0RGa8"
+      }
+    }
+  }
+}

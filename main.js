@@ -1,6 +1,6 @@
 'use strict';
 
-const {OAuth2Client} = require('google-auth-library');
+const { OAuth2Client } = require('google-auth-library');
 const GOOGLE_CLIENT_ID = '<enter your client id here>';
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
@@ -43,7 +43,6 @@ exports.auth = function (event, context, callback) {
     }
 
     const token = headers.authorization[0].value.slice(7);
-    log('auth', {token: token});
 
     verify(token)
         .then(() => {
@@ -70,8 +69,7 @@ async function verify(token) {
         log('ERROR', err);
         throw generateError('401', err.message, 'unauthorized.html');
     }
-    log('ticket', ticket);
-    if (ticket.payload.hd !== '<enter your company's email domain here>') {
+    if (ticket.payload.hd !== '<enter your company email domain here>') {
         throw generateError('403', 'Forbidden!', 'forbidden.html');
     }
     return true;
